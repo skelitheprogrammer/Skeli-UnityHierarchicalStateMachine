@@ -217,3 +217,6 @@ Update StateMachineContext in Update Loop:
 ## TODO's
 - Add Transitions from any
 - Try to combine StateMachine and State builders into 1 realization
+
+#Contacts
+Feel free to send feedback and ask questions by email: dosynkirill@gmail.com
