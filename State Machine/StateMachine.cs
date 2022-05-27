@@ -2,108 +2,167 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class StateMachine : State, IStateMachine
+namespace Skeli.StateMachine
 {
-	private readonly List<State> _states = new();
-	private readonly List<Transition> _stateTransitions = new();
+    public sealed class StateMachine : State, IStateMachine
+    {
+        private readonly List<State> _states = new();
+        private readonly List<Transition> _stateTransitions = new();
 
-	public State ActiveState { get; private set; }
+        private State _entryState;
+        public State ActiveState { get; private set; }
 
-	public StateMachine(string name) : base(name) {}
+        public StateMachine() : base() { }
+        public StateMachine(string name) : base(name) { }
 
-	public class StateMachineBuilder : BuilderBase<StateMachine, StateMachineBuilderFinal>
-	{
-		public override BuilderBase<StateMachine, StateMachineBuilderFinal> Begin(string name)
-		{
-			_state = new StateMachine(name);
-			return this;
-		}
+        public void AddState(State state) => _states.Add(state);
 
-		public override StateMachineBuilderFinal BuildEnter(Action action)
-		{
-			_state.OnEnter = action;
-			return new StateMachineBuilderFinal(_state);
-		}
-
-		public override StateMachineBuilderFinal BuildExit(Action exit)
-		{
-			_state.OnExit = exit;
-			return new StateMachineBuilderFinal(_state);
-		}
-
-		public override StateMachineBuilderFinal BuildLogic(Action logic)
-		{
-			_state.OnLogic = logic;
-			return new StateMachineBuilderFinal(_state);
-		}
-	}
-
-	public sealed class StateMachineBuilderFinal : StateMachineBuilder
-	{
-		public StateMachineBuilderFinal(StateMachine state)
+        public void AddTransition(Transition transition) => _stateTransitions.Add(transition);
+        public void SetEntryState(State state)
         {
-			_state = state;
+            _entryState = state;
         }
 
-		public StateMachine Build() => _state;
-	}
-
-	public void AddState(State state) => _states.Add(state);
-
-	public void AddTransition(Transition transition) => _stateTransitions.Add(transition);
-
-	public void SetActiveState(State state) => ActiveState = state;
-
-	public void ChangeState(State state)
-	{
-		ActiveState?.Exit();
-		SetActiveState(state);
-
-		if (ActiveState == null)
+        public override void Enter()
         {
-			if (OnEnter != null)
+            ChangeState(_entryState);
+            base.Enter();
+        }
+
+        public override void DoLogic()
+        {
+            base.DoLogic();
+            UpdateState();
+        }
+
+        public override void Exit()
+        {
+            if (ActiveState != null && ActiveState is StateMachine)
             {
-				Enter();
+                (ActiveState as StateMachine).ChangeState(null);
             }
 
-			return;
-		}
+            ChangeState(null);
+            base.Exit();
 
-		ActiveState.Enter();
-	}
+        }
 
-	public void UpdateState()
-	{
-		DoLogic();
+        public void UpdateState()
+        {
+            //Debug.Log($"{Name} {ActiveState?.Name}");
 
-		foreach (var transition in _stateTransitions)
-		{
-			if (this != transition.from || ActiveState == transition.from) continue;
+            //if (_entryState == null) throw new NullReferenceException($"Set Entry state in {Name} !");
 
-			TryProceedTransition(transition);
-		}
+            ActiveState?.DoLogic();
 
-		ActiveState?.DoLogic();
+            LoopStateMachineTransitions();
+        }
 
-		foreach (var transition in _stateTransitions)
-		{
-            if (this == transition.from || ActiveState != transition.from) continue;
+        public void ResetState()
+        {
+            ActiveState?.Exit();
+            ActiveState = null;
+        }
 
-/*            if (transition.from == ActiveState && transition.to == this)
+        private void ChangeState(State state)
+        {
+            if (state == null && ActiveState == null)
             {
-                ChangeState(null);
                 return;
-            }*/
+            }
 
-            TryProceedTransition(transition);
-		}
-	}
-	private void TryProceedTransition(Transition transition)
+            Debug.LogWarning($"{Name} transition: from {(ActiveState == null ? "null" : ActiveState.Name)} to {(state == null ? "null" : state.Name)}");
+
+            ActiveState?.Exit();
+
+            if (state == null)
+            {
+                ActiveState = null;
+                return;
+            }
+
+            ActiveState = state;
+            ActiveState?.Enter();
+        }
+
+        private void LoopStateMachineTransitions()
+        {
+            foreach (var transition in _stateTransitions)
+            {
+                if (ActiveState == transition.to) continue;
+
+                TryProceedTransition(transition);
+
+                return;
+            }
+        }
+
+        private void TryProceedTransition(Transition transition)
+        {
+            if (transition.ShouldTransition()) ChangeState(transition.to);
+        }
+    }
+
+    #region Builder
+    public class StateMachineBuilder
     {
-		if (transition.ShouldTransition())
-		{
-			Debug.Log($"Changing {transition.from.name} {transition.to.name}");
-			ChangeState(transition.to);
-		}
-	}
+        private StateMachine _stateMachine;
+
+        public StateMachineLogicBuild Begin()
+        {
+            _stateMachine = new StateMachine();
+            return new StateMachineLogicBuild(_stateMachine);
+        }
+
+        public StateMachineLogicBuild Begin(string name)
+        {
+            _stateMachine = new StateMachine(name);
+            return new StateMachineLogicBuild(_stateMachine);
+        }
+
+        public class StateMachineLogicBuild
+        {
+            private readonly StateMachine _stateMachine;
+
+            public StateMachineLogicBuild(StateMachine state) => _stateMachine = state;
+
+            public StateMachineLogic BuildLogic() => new StateMachineLogic(_stateMachine);
+
+            public StateMachine Build() => _stateMachine;
+        }
+
+        public class StateMachineLogic
+        {
+            protected readonly StateMachine _stateMachine;
+
+            public StateMachineLogic(StateMachine state) => _stateMachine = state;
+
+            public StateMachineLogicBuilder WithEnter(Action enter)
+            {
+                _stateMachine.OnEnter = enter;
+                return new StateMachineLogicBuilder(_stateMachine);
+            }
+
+            public StateMachineLogicBuilder WithTick(Action logic)
+            {
+                _stateMachine.OnLogic = logic;
+                return new StateMachineLogicBuilder(_stateMachine);
+            }
+
+            public StateMachineLogicBuilder WithExit(Action exit)
+            {
+                _stateMachine.OnExit = exit;
+                return new StateMachineLogicBuilder(_stateMachine);
+            }
+
+        }
+
+        public class StateMachineLogicBuilder : StateMachineLogic
+        {
+            public StateMachineLogicBuilder(StateMachine state) : base(state) { }
+
+            public StateMachine Build() => _stateMachine;
+        }
+    }
+    #endregion
 }

@@ -1,58 +1,84 @@
 ﻿using System;
 
-public class Transition : TransitionBase
+namespace Skeli.StateMachine
 {
-    public readonly State from;
-    public readonly State to;
 
-    private readonly Func<bool> _condition;
-
-    public Transition(State from, State to, Func<bool> condition)
+    public sealed class Transition : TransitionBase
     {
-        this.from = from;
-        this.to = to;
+        public readonly State from;
+        public readonly State to;
 
-        if (condition == null)
+        private readonly Func<bool> _condition;
+
+        public Transition(State from, State to, Func<bool> condition)
         {
+            this.from = from;
+            this.to = to;
+
+            if (condition == null)
+            {
+                _condition = () => true;
+                return;
+            }
+
+            _condition = condition;
+
+        }
+
+        public Transition(State from, State to, ConditionBase condition, bool isReversed)
+        {
+            this.from = from;
+            this.to = to;
+
+            if (condition == null)
+            {
+                _condition = () => true;
+                return;
+            }
+
+            if (isReversed)
+            {
+                _condition = () => !condition.BoolCondition;
+            }
+            else
+            {
+                _condition = () => condition.BoolCondition;
+            }
+        }
+
+        public Transition(State from, State to)
+        {
+            this.from = from;
+            this.to = to;
+
             _condition = () => true;
-            return;
         }
 
-        _condition = condition;
-
-    }
-
-    public Transition(State from, State to, ConditionBase condition, bool isReversed)
-    {
-        this.from = from;
-        this.to = to;
-
-        if (condition == null)
+        public Transition(State to)
         {
+            from = null;
+            this.to = to;
             _condition = () => true;
-            return;
         }
 
-        if (isReversed)
+        public Transition(State to, Func<bool> condition)
         {
-            _condition = () => !condition.BoolCondition;
+            from = null;
+            this.to = to;
+
+            if (condition == null)
+            {
+                _condition = () => true;
+                return;
+            }
+
+            _condition = condition;
         }
-        else
+
+        public override bool ShouldTransition()
         {
-            _condition = () => condition.BoolCondition;
+            return _condition();
         }
     }
 
-    public Transition(State from, State to)
-    {
-        this.from = from;
-        this.to = to;
-
-        _condition = () => true;
-    }
-
-    public override bool ShouldTransition()
-    {
-        return _condition();
-    }
 }
