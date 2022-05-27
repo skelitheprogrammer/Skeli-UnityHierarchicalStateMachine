@@ -30,56 +30,71 @@ ShouldTransition() method executes in StateMachine and StateMachineContext.
 
 Transition constructors:
 ```cs
+public Transition(State from, State to, Func<bool> condition)
+{
+	this.from = from;
+	this.to = to;
 
-    public Transition(State from, State to, Func<bool> condition)
-    {
-        this.from = from;
-        this.to = to;
+	if (condition == null)
+	{
+		_condition = () => true;
+		return;
+	}
 
-        if (condition == null)
-        {
-            _condition = () => true;
-            return;
-        }
+	_condition = condition;
 
-        _condition = condition;
-
-    }
+}
 ```
 
 ```cs
-    public Transition(State from, State to, ConditionBase condition, bool isReversed)
-    {
-        this.from = from;
-        this.to = to;
+public Transition(State from, State to, ConditionBase condition, bool isReversed)
+{
+	this.from = from;
+	this.to = to;
 
-        if (condition == null)
-        {
-            _condition = () => true;
-            return;
-        }
+	if (condition == null)
+	{
+		_condition = () => true;
+		return;
+	}
 
-        if (isReversed)
-        {
-            _condition = () => !condition.BoolCondition;
-        }
-        else
-        {
-            _condition = () => condition.BoolCondition;
-        }
-    }
+	if (isReversed)
+	{
+		_condition = () => !condition.BoolCondition;
+	}
+	else
+	{
+		_condition = () => condition.BoolCondition;
+	}
+}
 ```
 ConditionBase is the wrapper class created to pull out the logic into separate class (WIP).
 
 
 ```cs
-    public Transition(State from, State to)
-    {
-        this.from = from;
-        this.to = to;
+public Transition(State from, State to)
+{
+	this.from = from;
+	this.to = to;
 
-        _condition = () => true;
-    }
+    _condition = () => true;
+}
+```
+
+```cs
+public Transition(State to, Func<bool> condition)
+{
+	from = null;
+	this.to = to;
+
+	if (condition == null)
+	{
+		_condition = () => true;
+		return;
+	}
+
+	_condition = condition;
+}
 ```
 
 # StateMachineContext
