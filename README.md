@@ -91,8 +91,8 @@ StateMachineContext is the class which implements IStateMachine interface and co
 To be able to create StateMachines and States you need to create their builders first.
 
 ```cs
-    var stateMachineBuilder = new StateMachine.StateMachineBuilder();
-    var stateBuilder = new State.StateBuilder();
+    var stateMachineBuilder = new StateMachineBuilder();
+    var stateBuilder = new StateBuilder();
 ```
 
 This needs to make creation of StateMachine and State much easier.
@@ -100,35 +100,43 @@ This needs to make creation of StateMachine and State much easier.
 Example of creation StateMachine:
 
 ```cs
-    var stateMachineBuilder = new StateMachine.StateMachineBuilder();
-    var stateBuilder = new State.StateBuilder();
-        
-    StateMachine grounded = stateMachineBuilder.Begin("Grounded")
-	    .BuildEnter(() => 
-	    {
-            Debug.Log("Hello world!");
-	    })
-	    .BuildLogic(() =>
-	    {
-		    Debug.Log("Hey, I'm doing something each Update tick!");
-        })
-	    .BuildExit(() => 
-	    {
-		    Debug.Log("I have to go but I'll leave this message");
-	    })
-	    .Build();
+var stateMachineBuilder = new StateMachine.StateMachineBuilder();
+var stateBuilder = new State.StateBuilder();
+    
+StateMachine groundedSM = stateMachineBuilder.Begin("Grounded")
+	.BuildLogic()
+		.WithEnter(() =>
+		{
+			SetSpeed(Vector3.zero);
+			_animation.SetIsGrounded(true);
+		})
+		.WithTick(() =>
+		{
+			if (_groundChecker.GroundCheck())
+			{
+				if (_direction.IsOnSlope)
+				{
+					_velocity.y = _gravity.SetGroundedGravity();
+				}
+			}
+		})
+		.WithExit(() =>
+		{
+			_animation.SetIsGrounded(false);
+		})
+	.Build();
+	
 ```
 - Begin() - Creates new instance of empty State/StateMachine.
-- BuildEnter(Action enter) - Build enter logic that will be called when State/StateMachine is entered
-- BuildLogic(Action logic) - Build update logic that will be called each update tick
-- BuildExit(Action exit)  - Build exit logic that will be called when states are changing
+- BuildLogic() - Opens block where u can modify your State/StateMachine
+- WithEnter(Action enter) - Build enter logic that will be called when State/StateMachine is entered
+- WithTick(Action logic) - Build update logic that will be called each update tick
+- WithExit(Action exit)  - Build exit logic that will be called when states are changing
 - Build() - Wraps up everything you made in build methods and returns instance of State/StateMachine;
 
 You can combine which combinations of logics you need to build (Enter+Logic, Enter+Exit, etc.).
 
-> It's important to start creation of you next State/StateMachine with Begin() method to ensure that you will create new instance of State/StateMachine.
-> I made that because I don't want to create new Builder each time.
-
+> I made that kind of builders because I don't want to create new Builder each time.
 
 # Getting Started
 
@@ -149,45 +157,44 @@ Create instances of StateMachineContext, StateMachineBuilder and StateBuilder cl
 Then you can start creating StateMachines and States:
 
 ```cs
-    private void Awake()
-    {
-        _fsm = new StateMachineContext();
-		var stateMachineBuilder = new StateMachine.StateMachineBuilder();
-		var stateBuilder = new State.StateBuilder();
+private void Awake()
+{
+	_fsm = new StateMachineContext();
+	var stateMachineBuilder = new StateMachineBuilder();
+	var stateBuilder = new StateBuilder();
         
-		StateMachine grounded = stateMachineBuilder.Begin("Grounded")
-			.BuildEnter(() => 
+	StateMachine grounded = stateMachineBuilder.Begin("Grounded")
+		.BuildLogic()
+			.WithEnter(() => 
 			{
-                Debug.Log("Hello world!");
+				Debug.Log("Hello world!");
 			})
-			.BuildLogic(() =>
+			.WithTick(() =>
 			{
 				Debug.Log("Hey, I'm doing something each Update tick!");
 			})
-			.BuildExit(() => 
+			.WithExit(() => 
 			{
 				Debug.Log("I have to go but I'll leave this message");
 			})
-			.Build();
+		.Build();
             
-		State isJumping = stateBuilder.Begin("Jumping")
-			.BuildEnter(() =>
-			{
-			})
+	State isJumping = stateBuilder.Begin("Jumping")
+			.BuildLogic()
+				.WithEnter(() => 
+				{
+                	Debug.Log("Im JUMPING!");
+				})
 			.Build();
 
-		StateMachine isFalling = stateMachineBuilder.Begin("Falling")
-			.BuildEnter(() => 
-			{
-			})
-			.BuildLogic(() =>
-			{
-			})
-			.BuildExit(() => 
-			{
-			})
-			.Build();            
-    }
+	StateMachine isFalling = stateMachineBuilder.Begin("Falling")
+			.BuildLogic()
+				.WithTick(() =>
+				{
+					Debug.Log("Falling Logic");
+				})
+			.Build();     
+}
 ```
 Adds States:
 ```cs
@@ -206,17 +213,13 @@ Then you add transitions:
 ```
 Initialize StateMachineContext:
 ```cs
-	_fsm.Init();
+	_fsm.Init(groundedSM);
 ```
 
 Update StateMachineContext in Update Loop:
 ```cs
 	_fsm.UpdateState();
 ```
-
-## TODO's
-- Add Transitions from any
-- Try to combine StateMachine and State builders into 1 realization
 
 #Contacts
 Feel free to send feedback and ask questions by email: dosynkirill@gmail.com
