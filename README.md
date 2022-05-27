@@ -101,6 +101,14 @@ public Transition(State to, Func<bool> condition)
 In this project I made a decision that if you want to create Hirearchical State Machine, whole process should rule special class - StateMachineContext.
 
 StateMachineContext is the class which implements IStateMachine interface and controls StateMachines, which in turn controls other StateMachines and States. 
+> You can still use StateMachines and create Hierarchical State Machines without this class.
+
+```cs
+StateMachineContext fsm = new StateMachineContext();
+fsm.Init(StateMachine State); // Need to choose from which statemachine context will start
+
+fsm.UpdateState(); // Update context in update loop
+```
 
 # StateMachine and State Builders
 To be able to create StateMachines and States you need to create their builders first.
@@ -140,6 +148,8 @@ StateMachine groundedSM = stateMachineBuilder.Begin("Grounded")
 			_animation.SetIsGrounded(false);
 		})
 	.Build();
+
+groundedSM.SetEntryState(stateName); //From which state should start this StateMachine
 	
 ```
 - Begin() - Creates new instance of empty State/StateMachine.
@@ -149,7 +159,7 @@ StateMachine groundedSM = stateMachineBuilder.Begin("Grounded")
 - WithExit(Action exit)  - Build exit logic that will be called when states are changing
 - Build() - Wraps up everything you made in build methods and returns instance of State/StateMachine;
 
-You can combine which combinations of logics you need to build (Enter+Logic, Enter+Exit, etc.).
+You can combine which combinations of logic you need to build (Enter+Tick, Enter+Exit, etc.).
 
 > I made that kind of builders because I don't want to create new Builder each time.
 
@@ -223,10 +233,10 @@ Then you add transitions:
     grounded.AddTransition(new Transition(grounded, isJumping, () => _data.isGrounded && _input.IsJumped));
     grounded.AddTransition(new Transition(isJumping, grounded, () => _data.isGrounded));
     grounded.AddTransition(new Transition(isJumping, isFalling, () => !_data.isGrounded));
-	_fsm.AddTransition(new Transition(grounded, isFalling, () => !_data.isGrounded));
-	_fsm.AddTransition(new Transition(isFalling, grounded, () => _data.isGrounded));
+    _fsm.AddTransition(new Transition(grounded, isFalling, () => !_data.isGrounded));
+    _fsm.AddTransition(new Transition(isFalling, grounded, () => _data.isGrounded));
 ```
-Initialize StateMachineContext:
+Initialize:
 ```cs
 	_fsm.Init(groundedSM);
 ```
